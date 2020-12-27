@@ -8,7 +8,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 public class Application {
     public static void main(String[] args) {
-        ApplicationContext applicationContext = new ClassPathXmlApplicationContext("config.xml");
+        ApplicationContext applicationContext = new ClassPathXmlApplicationContext("config-*.xml");
 
         TodoService bean = applicationContext.getBean(TodoService.class);
         bean.findAssignedTodos().forEach(System.out::println);
