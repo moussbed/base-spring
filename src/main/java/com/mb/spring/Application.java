@@ -10,6 +10,12 @@ public class Application {
 
         TodoService bean = applicationContext.getBean(TodoService.class);
         bean.findAssignedTodos().forEach(System.out::println);
+        System.out.println(bean.findEmailsList());
+        System.out.println(bean.findTownList());
+        System.out.println(bean.userName());
+
+        //UserService bean1 = applicationContext.getBean(UserService.class);
+       // System.out.println(bean1.getCurrentUser());
 
     }
 }

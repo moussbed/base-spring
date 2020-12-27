@@ -9,7 +9,7 @@ import java.util.*;
 
 public abstract class AbstractDataSource {
 
-    private  static Map<String, User> userList = new HashMap<>();
+    private  static Map<String, User> userList = new TreeMap<>();
 
     static {
         User user = new User().setName("Bedril");

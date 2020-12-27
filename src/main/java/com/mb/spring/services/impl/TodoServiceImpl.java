@@ -5,14 +5,20 @@ import com.mb.spring.models.TodoList;
 import com.mb.spring.models.User;
 import com.mb.spring.services.TodoService;
 import com.mb.spring.services.UserService;
+import org.springframework.beans.factory.annotation.Value;
 
-import java.util.Collection;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 public class TodoServiceImpl implements TodoService {
 
     private UserService userService;
+
+    private List<String> emails;
+
+    private Map<Long,String> towns;
+
+    @Value(value = "${dataSource.username}")
+    private String username;
 
     @Override
     public Collection<Todo> findAssignedTodos() {
@@ -29,7 +35,31 @@ public class TodoServiceImpl implements TodoService {
         return assignedTodos;
     }
 
+    @Override
+    public String userName() {
+        return username;
+    }
+
+    @Override
+    public Collection<String> findEmailsList() {
+        Collections.sort(emails);
+        return emails;
+    }
+
+    @Override
+    public Map<Long, String> findTownList() {
+        return towns ;
+    }
+
     public void setUserService(UserServiceImpl userService) {
-        this.userService=userService;
+        this.userService = userService;
+    }
+
+    public void setEmails(List<String> emails) {
+        this.emails = emails;
+    }
+
+    public void setTowns(Map<Long, String> towns) {
+        this.towns = towns;
     }
 }

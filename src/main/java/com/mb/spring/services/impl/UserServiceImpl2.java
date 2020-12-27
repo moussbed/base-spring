@@ -15,7 +15,8 @@ public class UserServiceImpl2 implements UserService {
 
     @Override
     public User getCurrentUser() {
-        return userRepository.getUserCurrent("Saly");
+        //return userRepository.getUserCurrent("Saly");
+        return userRepository.getUserCurrent("Bedril");
     }
 }
 

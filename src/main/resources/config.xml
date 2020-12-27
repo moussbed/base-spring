@@ -1,17 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-       xmlns:context="http://www.springframework.org/schema/context"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns:context="http://www.springframework.org/schema/context"
        xsi:schemaLocation="http://www.springframework.org/schema/beans
-       http://www.springframework.org/schema/beans/spring-beans.xsd"
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd"
 >
 
-    <!--<context:component-scan base-package="com.mb.spring.services.impl"/>-->
+    <context:component-scan base-package="com.mb.spring.services.impl"/>
+    <context:property-placeholder location="application.properties"/>
 
     <!-- injection by setter -->
-    <bean id="todoService"  class="com.mb.spring.services.impl.TodoServiceImpl">
+    <bean id="todoService" class="com.mb.spring.services.impl.TodoServiceImpl">
         <property name="userService" ref="userService"/>
+        <property name="emails">
+            <list>
+                <value>formation@ippon.com</value>
+                <value>recrutement@ippon.com</value>
+                <value>contact@ippon.com</value>
+            </list>
+        </property>
+        <property name="towns" ref="towns"/>
     </bean>
+
+    <!-- You can use it or you use what inserted property emails in todoService bean -->
+    <!--<util:list id="emails">
+        <value>formation@ippon.fr</value>
+        <value>contact@ippon.fr</value>
+        <value>recrutement@ippon.fr</value>
+    </util:list>-->
+
+    <util:map id="towns">
+        <entry key="1" value="Douala"/>
+        <entry key="2" value="Kribi"/>
+        <entry key="3" value="Yaounde"/>
+        <entry key="4" value="Ebolowa"/>
+    </util:map>
 
     <!-- injection by constructor -->
     <bean id="userService" class="com.mb.spring.services.impl.UserServiceImpl">
