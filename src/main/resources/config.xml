@@ -45,4 +45,21 @@
     </bean>
 
     <bean id="userRepository" class="com.mb.spring.services.impl.UserRepositoryImpl"/>
+
+    <bean id="parentBean" class="com.mb.spring.services.impl.ParentBeanImpl">
+        <property name="innerBean">
+            <bean class="com.mb.spring.services.impl.InnerBeanImpl">
+                <property name="age" value="2"/>
+                <property name="name" value="David Essentiel"/>
+            </bean>
+        </property>
+    </bean>
+    <bean id="parentBeanDefinition" abstract="true">
+        <property name="age" value="1"/>
+        <property name="name" value="David"/>
+    </bean>
+
+    <bean id="childBean" class="com.mb.spring.services.impl.ChildBean" parent="parentBeanDefinition" init-method="initialize">
+        <property name="name" value="Betsaleel"/>
+    </bean>
 </beans>
