@@ -13,7 +13,7 @@
 
     <context:component-scan base-package="com.mb.spring.services.impl"/>
     <context:property-placeholder location="application.properties"/>
-    <aop:aspectj-autoproxy/>
+    <aop:aspectj-autoproxy />
 
     <!-- injection by setter -->
     <bean id="todoService" class="com.mb.spring.services.impl.TodoServiceImpl">

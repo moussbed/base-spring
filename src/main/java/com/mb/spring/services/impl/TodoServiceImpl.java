@@ -1,5 +1,6 @@
 package com.mb.spring.services.impl;
 
+import com.mb.spring.annotation.Secure;
 import com.mb.spring.models.Todo;
 import com.mb.spring.models.TodoList;
 import com.mb.spring.models.User;
@@ -41,6 +42,7 @@ public class TodoServiceImpl implements TodoService {
     }
 
     @Override
+    @Secure
     public Collection<String> findEmailsList() {
         Collections.sort(emails);
         return emails;
