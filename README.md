@@ -109,4 +109,17 @@
                «||» et «!»
                  ![alt text](https://github.com/moussbed/base-spring/blob/main/pointcut-combines-aop.png?raw=true)
 
-               
+         - Accès aux arguments des méthodes
+             - Il est intéressant d’avoir accès aux arguments des méthodes sur lesquelles les Aspects s’appliquent
+             - On peut les «binder» sur l’Advice
+                              ![alt text](https://github.com/moussbed/base-spring/blob/main/advice-method-arguments.png?raw=true)
+
+         - Accès au Join Point   
+             - Pour accéder au Join Point, il suffit de passer l’objet en premier paramètre de l’Advice
+             - Vous avez alors accès à :
+                 - Args : les arguments passés à la méthode
+                 - Signature : la signature de la méthode
+                 - Target : le Bean sur lequel s’applique l’Aspect
+                 - This : l’objet en cours (le proxy entourant le Bean)
+                                ![alt text](https://github.com/moussbed/base-spring/blob/main/advice-joint-point.png?raw=true)
+   
