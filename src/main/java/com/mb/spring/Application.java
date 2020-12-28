@@ -3,6 +3,7 @@ package com.mb.spring;
 import com.mb.spring.services.ParentBean;
 import com.mb.spring.services.ParentBeanDefinition;
 import com.mb.spring.services.TodoService;
+import com.mb.spring.services.WorkWithAop;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
@@ -21,6 +22,9 @@ public class Application {
         ParentBeanDefinition bean2 = applicationContext.getBean(ParentBeanDefinition.class);
         System.out.println(bean2.getAge());
         System.out.println(bean2.getName());
+
+        WorkWithAop bean3 = applicationContext.getBean(WorkWithAop.class);
+        bean3.accounting();
 
         //UserService bean1 = applicationContext.getBean(UserService.class);
        // System.out.println(bean1.getCurrentUser());
