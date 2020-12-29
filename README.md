@@ -137,4 +137,76 @@
          - Avoir un accès «bas niveau» à la base de données
     - **Spring JDBC peut être utilisé conjointement à Hibernate/JPA, qui fournit une solution bien plus complète d’accès aux bases de données relationnelles**     
          
+
+- Introduction aux transactions
+    - Les transactions sont typiquement gérées par une base de données relationnelles
+    - Une transaction est normalement **ACID**
+         - **A**tomique
+         - **C**ohérente (**C**onsistant)
+         - **I**solée
+         - **D**urable
+    - En Java, nous pouvons les gérer via des APIs simples, par exemple en JDBC ou avec JTA 
     
+    - **Utilité des transactions**
+         - Il est primordial de gérer les transactions si on veut avoir des
+           données de qualité
+              - Les transactions permettent de traiter un ensemble d’opérations
+                comme une seule opération
+              - Pas de données incohérentes dans la base  
+         - Les transactions permettent également d’avoir de meilleures
+           performances
+              - Il vaut mieux faire 10 requêtes dans une transaction que de faire 10
+                requêtes dans 10 transactions
+              - C’est d’ailleurs une des raisons de leur utilisation dans les batchs
+    - **Exemple d’une transaction**     
+        - 3 requêtes : 1 lecture, 2 écritures
+        - 1 seule transaction (matérialisée par la flèche)
+        - Soit les 2 modifications sont appliquées, soit aucune n’est appliquée
+              ![alt text](https://github.com/moussbed/base-spring/blob/main/transaction.png?raw=true)
+    - **Les transactions en Java**
+        - En JDBC 
+              ![alt text](https://github.com/moussbed/base-spring/blob/main/transaction-jdbc.png?raw=true)
+        - Avec JTA (Java Transaction API)
+              ![alt text](https://github.com/moussbed/base-spring/blob/main/transaction-jta.png?raw=true)
+
+    - **Spring Transactions**   
+        - **Spring propose une couche d’abstraction**
+             - Gère les transactions JDBC, Hibernate, JTA etc... de manière homogène
+             - Permet de simplement configurer ses transactions : utilisation d’annotations ou d’XML, sans utilisation obligatoire de code
+        - **Cela permet d’avoir une meilleure architecture**
+             - Les transactions sont déclarées dans la couche métier (service), et
+               non dans la couche d’accès aux données (repository / DAO)
+             - Les transactions ne dépendent pas d’une technologie particulière d’accès aux données (JDBC)                                      
+        - **Utilisation simple avec Spring**     
+             - Configurer un gestionnaire de transaction
+                -        <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+                            <property name="dataSource" ref="dataSource"/>
+                         </bean>
+             - Dire à Spring que l’on veut utiliser les annotations
+               -        <tx:annotation-driven/>    
+             - Utiliser les annotations
+               -    `@Transactional
+                    public void uneMethodeMetier() { 
+                    // Unité de travail atomique
+                    }   `      
+        - **Fonctionnement dans Spring**  
+            - Spring fournit un Aspect spécialisé
+               - Le Point Cut est sur les méthodes annotées @Transactional
+               - L’Advice est de type Around, et ajoute la gestion des transactions
+                 autour des méthodes annotées          
+            - C’est le fonctionnement que nous avons vu dans le chapitre
+              sur Spring AOP, avec la génération d’un proxy
+               - Ne fonctionne que sur les Beans Spring
+               - Ne fonctionne que sur les méthodes publiques
+               - Ne fonctionne pas à l’intérieur d’un même Bean
+     
+        - **Configuration d’un gestionnaire de transaction**   
+            - Le gestionnaire de transaction est une classe fournie par
+              Spring
+               - Il fait partie de l’infrastructure
+               - Il est spécifique à la technologie utilisée
+               - Hors JTA, il a besoin d’une Data Source pour être configuré
+               - Par convention, il possède l’id «transactionManager»
+            - Si vous êtes dans un serveur d’applications (Websphere, Weblogic...), Spring peut retrouver automatiquement le gestionnaire de transactions de ce serveur (utilisant l’API JTA) :
+               -  <tx:jta-transaction-manager/>
+                             
