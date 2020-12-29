@@ -122,4 +122,19 @@
                  - Target : le Bean sur lequel s’applique l’Aspect
                  - This : l’objet en cours (le proxy entourant le Bean)
                                 ![alt text](https://github.com/moussbed/base-spring/blob/main/advice-joint-point.png?raw=true)
-   
+
+- Spring JDBC 
+
+    - Pour lancer la BD :
+         - > cd dataBase 
+         - > docker-compose -f stack.yml up
+    - **Abstraction relativement simple au-dessus de JDBC**
+         - Gestion automatique de la DataSource(ouverture et fermeture)
+         - Gestion automatique des Exceptions
+         - Classes utilitaires simples, utilisant des Templates et des Callbacks    
+    - **Spring JDBC est pratique pour**     
+         - Faire des CRUD simples
+         - Avoir un accès «bas niveau» à la base de données
+    - **Spring JDBC peut être utilisé conjointement à Hibernate/JPA, qui fournit une solution bien plus complète d’accès aux bases de données relationnelles**     
+         
+    
