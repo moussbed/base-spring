@@ -1,6 +1,6 @@
 # Base-spring
 
-- AOP : Aspect Oriented Programming, ou Programmation Orientée Aspect en Français
+- **AOP : Aspect Oriented Programming, ou Programmation Orientée Aspect en Français**
      - L’un des deux concepts principaux de Spring (avec l’ Inversion de Contrôle)
      - Permet de rajouter des comportements à des classes ou des
        méthodes existantes
@@ -11,7 +11,7 @@
          - Elles sont généralement techniques (infrastructure)
          - Elles sont plus rarement métier
          
-     - Spring AOP ou AspectJ
+     - **Spring AOP ou AspectJ**
          - **Spring AOP utilise un mécanisme de proxy**
              - Ne fonctionne que sur des Beans Spring, et son utilisation est très simple
              - Est largement suffisant pour des besoins "normaux", ce qui fait que la très
@@ -123,7 +123,7 @@
                  - This : l’objet en cours (le proxy entourant le Bean)
                                 ![alt text](https://github.com/moussbed/base-spring/blob/main/advice-joint-point.png?raw=true)
 
-- Spring JDBC 
+- **Spring JDBC** 
 
     - Pour lancer la BD :
          - > cd dataBase 
@@ -138,7 +138,7 @@
     - **Spring JDBC peut être utilisé conjointement à Hibernate/JPA, qui fournit une solution bien plus complète d’accès aux bases de données relationnelles**     
          
 
-- Introduction aux transactions
+- **Introduction aux transactions**
     - Les transactions sont typiquement gérées par une base de données relationnelles
     - Une transaction est normalement **ACID**
          - **A**tomique
@@ -320,8 +320,221 @@
              - Il a tendance à laisser les transactions ouvertes trop longtemps
              - On arrive à terme à une requête HTTP == une transaction, et donc à
                une connexion en base de données. Difficile alors de monter en charge !
-               
-                   
-                   
+     
+- **Les Tests**     
+                            
+    - **Introduction sur les tests**  
+        - Les tests automatisés permettent d’améliorer la qualité du
+          code
+           - Garantissent le bon respect des règles métier
+           - Facilitent le refactoring
+        - Ils permettent également de coder plus efficacement
+           - L’automatisation permet un feedback rapide
+             - Permet de corriger un bug juste après l’avoir causé
+             - Evite de polluer l’application et d’impacter les autres
+               développeurs
+        - Spring permet d’améliorer la conception des tests unitaires et
+          propose un excellent support des tests d’intégration                       
                      
+    - **Tests unitaires contre tests d’intégration**     
+        - Il y a deux types de tests
+           - Test d’un composant unique (métier ou technique), en isolation du
+             reste des autres composants : ce sont les tests unitaires
+             - Cela exclut l’utilisation de Spring
+           - Test d’un ensemble de composants dans un environnement comparable à la production : ce sont les tests d’intégration
+             - Cela inclut l’utilisation de Spring, sans doute avec une
+               configuration d’infrastructure spécifique    
+        - Les tests unitaires et les tests d’intégration ne sont pas
+          exclusifs : il faut utiliser les deux conjointement pour bien tester
+    
+    - **Objectifs des tests**  
+        - Les tests doivent couvrir un maximum de lignes de code de l’application   
+           - Il ne s’agit pas de tester toutes les lignes de code, mais de bien tester les
+             lignes de code importantes 
+           - Si une méthode utilise des branchements conditionnels, il faut valider tous les cas possibles  
+        - Ces tests doivent être rapides et automatisés   
+           - Un jeu de test qui dure longtemps ne sera jamais exécuté par les développeurs : son utilité est donc nulle   
+    
+    - **L’intégration continue**   
+        - L’utilisation d’un serveur d’intégration continue est essentielle
+          pour exécuter ces tests
+           - Aujourd’hui il n’y a plus de question à se poser : utilisez Jenkins !
+             http://jenkins-ci.org/    
+        - Ce serveur vous alerte si les tests ne fonctionnent pas
+           - Vous évite d’updater votre projet si un de vos collègues a commité des bugs
+        - **_Bonne pratique : toujours faire passer les tests unitaires avant
+          de commiter_**  
+           - Renforce l’argument que ces tests doivent être rapides
+           - Certains IDE proposent cette fonctionnalité (ils refusent de commiter s’il y a
+             des erreurs)
+           - Certaines équipes vont plus loin : elles commitent dans un repository
+             intermédiaire, et leur code n’est ensuite poussé dans le repository principal que si les tests passent
+    
+    - **Tests unitaires**  
+        - Les tests unitaires permettent de tester une méthode en
+          isolation du reste de l’application
+           - Cela exclut Spring
+        - Cependant, grâce à Spring, vous avez des Beans faciles à tester
+           - L’injection de dépendance fait que les Beans Spring sont faciles à
+             tester unitairement : il suffit de remplacer ces dépendances par des
+             Stubs ou des Mocks 
+           - L’AOP permet de n’avoir qu’une seule fonctionnalité métier par
+             méthode
+              - Pas de code technique gérant les transactions ou la sécurité
+                mélangé au code métier     
                         
+    - **Exemple de test «simple»**     
+        - JUnit permet de lancer facilement toutes les méthodes marquées @Test
+           - Maven les lance ensuite dans sa phase «test»
+             ```java
+                 package com.mb.spring;
+                 
+                 import com.mb.spring.models.Todo;
+                 import org.junit.Test;
+                 import static org.junit.Assert.*;
+                 public class MyTest {
+                 
+                     @Test
+                     public void testEquals(){
+                         Todo todo1 = new Todo();
+                         todo1.setCompleted(false);
+                         Todo todo2 = new Todo();
+                         todo2.setCompleted(false);
+                         assertEquals(todo1.isCompleted(),todo2.isCompleted());
+                 
+                         Todo todo3 = new Todo();
+                         todo3.setCompleted(true);
+                 
+                         assertNotSame(todo1.isCompleted(),todo3.isCompleted());
+                     }
+                 }
+             ```                 
+    - **Des Stubs ou des Mocks ?**   
+        - En Français on confond les deux termes sous le nom de «bouchon»
+        - Ils sont nécessaires pour tester les dépendances, en particulier celles injectées par Spring
+        - Un **Stub** : une implémentation «**vide**» d’une dépendance  
+           - Exemple : pour un DAO, faire une implémentation qui n’accède pas
+             en base de données mais renvoie toujours les mêmes valeurs
+        - Un **Mock** : une implémentation générée par une librairie
+          spécialisée, qui la crée à la volée en fonction de l’interface à respecter         
+   
+    - **Astuce: comment injecter dans un champ** ?  
+        - Pour tester unitairement un Bean Spring ayant des dépendances  
+           - Il ne faut pas utiliser Spring (sinon ce ne serait plus un test)
+           - Il faut donc injecter manuellement ses dépendances
+        - Cette injection est évidente si l’on utilise l’injection par Setter ou par Constructeur
+        - Pour l’injection par Champ, qui est de plus en plus populaire, Spring propose cet utilitaire :
+            - ```java
+                  ReflectionTestUtils.setField(todosService, "todoListsService" ,
+                                                       todoListsService);
+              ```
+            -  Il injecte une variable «todoListsService» dans le champ nommé «todoListsService» du Bean «todosService»
+    
+    - **Exemple de Stub**   
+        - Le Stub implémente la même interface que la dépendance injectée 
+        - Le Stub peut être une classe anonyme (exemple ci-dessous), pour éviter de créer trop de fichiers   
+        - Cela peut être également une vraie classe, afin de pouvoir le réutiliser sur plusieurs tests   
+         ```java
+            @Test
+            public void testUserService1(){
+              // Injection by constructor
+              UserService userService = new UserServiceImpl(new UserRepository() {
+                 @Override
+                 public User getUserCurrent(String name) {
+                    return new User().setName("Bedril");
+                 }
+              });
+       
+             assertEquals(userService.getCurrentUser().getName(),"Bedril");
+       
+           }
+           
+             @Test
+             public void testUserService2(){
+         
+                 UserService userService = new UserServiceImpl2();
+                 // Injection by Field
+                 ReflectionTestUtils.setField(userService, "userRepository", new UserRepository() {
+                     @Override
+                     public User getUserCurrent(String name) {
+                         return new User().setName("Bedril");
+                     }
+                 });
+                 assertEquals(userService.getCurrentUser().getName(),"Bedril");
+         
+             }
+        ```
+    - **Exemple de test avec Mockito** 
+        - confere le code git : https://github.com/moussbed/base-test-mockito/tree/main/src/test/java/com/inet/mockito/mockito 
+    
+    -  **Pourquoi utiliser des Mocks ?**   
+        - Les Mocks sont aujourd’hui très populaires
+          - Ils évitent d’avoir à coder des Stubs
+          - Ils sont plus rapides à coder et à maintenir que des Stubs : on ne
+            code que les méthodes nécessaires au test
+          - Il est plus simple de les faire changer de comportement
+        - Ils restent plus complexes à coder  
+        - Il faut utiliser une librairie spécialisée
+          - Mockito 
+    
+    - **Tests d’intégration**  
+        - Les tests d’intégration incluent Spring
+           - Normalement avec une application context réduit : uniquement un ensemble de classes que l’on veut tester    
+           - Avec une configuration d’infrastructure spécifique : une base de données en mémoire ou une instance spécifique de la base de données cible
+        - Spring propose une intégration à JUnit qui simplifie grandement ce type de configuration   
+        
+        - **Support des tests d’intégration dans Spring**   
+           - SpringJUnit4ClassRunner permet d’intégrer Spring dans un test JUnit
+           - L’annotation @ContextConfiguration permet alors de localiser la configuration de Spring et de lancer l’Application Context
+           - On peut ainsi tester son application Spring avec JUnit, sans serveur d’applications 
+              - C’est évidemment beaucoup plus rapide à exécuter que de déployer
+                l’application sur un serveur d’applications
+                ```java
+                   @RunWith(SpringJUnit4ClassRunner.class) 
+                   @ContextConfiguration(locations={"classpath*:/META-INF/spring/application-context-test.xml"}) 
+                   public class IntegrationTest {
+                    @Inject
+                    private UserService userService;
+                    @Test
+                    public void createUser() { 
+                       try {
+                         userService.findUser("test_user");
+                         fail("User already exists in the database."); 
+                       } catch (ObjectRetrievalFailureException orfe) {
+                            // User should not already exist in the database.
+                       }
+                       User user = new User();
+                       user.setLogin("test_user");
+                       user.setFirstName("First name");
+                       userService.createUser(user);
+                       User userFoundInDatabase = userServicef.indUser("test_user"); 
+                       assertEquals("First name", userFoundInDatabase.getFirstName());
+                    } 
+                   }
+                ```
+        - **Astuce 1 : lancer l’application context une seule fois**  
+           - Spring ne lance qu’un seul application context par classe
+              - Toutes les méthodes de test d’une classe donnée utilisent la même
+                instance
+           - Cela permet d'accélérer les tests : sinon on lancerait beaucoup plus d’application contexts     
+              - Cela ne doit pas avoir d’autre impact
+                - En effet, vos Beans sont censés être thread safe        
+        - **Astuce 2 : rollback des transactions dans les tests d’intégration**    
+           - Par défaut, toute méthode de test annotée @Transactional va être rollbackée à la fin du test
+              - Inutile de nettoyer la base de données après un test
+              - Le test sera également plus performant
+              - Le rollback n’est possible qu’à la condition que personne ne commite explicitement pendant le test !    
+              
+              ```java
+                 @RunWith(SpringJUnit4ClassRunner.class) 
+                 @ContextConfiguration(locations={"classpath*:/META-INF/spring/application-context-test.xml}") 
+                 public class IntegrationTest {
+                 @Inject
+                 private UserService userService;
+                 @Test
+                 @Transactional
+                 public void createUser() {
+                     // Même code que précédemment
+                 } }
+                  
+              ```
