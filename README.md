@@ -185,10 +185,12 @@
              - Dire à Spring que l’on veut utiliser les annotations
                -        <tx:annotation-driven/>    
              - Utiliser les annotations
-               -    `@Transactional
-                    public void uneMethodeMetier() { 
-                    // Unité de travail atomique
-                    }   `      
+               -    ```java 
+                          @Transactional
+                          public void uneMethodeMetier() { 
+                            // Unité de travail atomique
+                          } 
+                  ```      
         - **Fonctionnement dans Spring**  
             - Spring fournit un Aspect spécialisé
                - Le Point Cut est sur les méthodes annotées @Transactional
@@ -207,6 +209,119 @@
                - Il est spécifique à la technologie utilisée
                - Hors JTA, il a besoin d’une Data Source pour être configuré
                - Par convention, il possède l’id «transactionManager»
-            - Si vous êtes dans un serveur d’applications (Websphere, Weblogic...), Spring peut retrouver automatiquement le gestionnaire de transactions de ce serveur (utilisant l’API JTA) :
-               -  <tx:jta-transaction-manager/>
-                             
+            - Si vous êtes dans un serveur d’applications (Websphere, Weblogic...), Spring peut retrouver automatiquement le gestionnaire de transactions de ce serveur (utilisant l’API JTA) : 
+                 - ``` <tx:jta-transaction-manager/> ```
+        - **Utilisation des annotations**
+            - L’annotation @Transactional peut être mise sur une classe (toutes les méthodes publiques sont transactionnelles) ou sur une méthode
+            - Cette annotation a un certain nombre de paramètres : Isolation, Propagation, Timeout, readOnly...
+        - **Variante : utilisation du XML**  
+               
+                < aop:config>
+                  <aop:pointcut id="serviceBeans"
+                   expression="execution(public * test.service.*(..))" /> 
+                  <aop:advisor pointcut-ref="serviceBeans" advice-ref="txAdvice"/>
+                </aop:config> 
+                
+                <tx:advice id="txAdvice"> 
+                 <tx:attributes>
+                  <tx:method name="find*" read-only="true"/>
+                  <tx:method name="*"/> 
+                 </tx:attributes>
+                </tx:advice>
+        
+        - **Le TransactionTemplate**    
+           - Si la configuration par annotations ou XML n’est pas
+             suffisante, Spring propose une API
+                - Elle utilise le système des Templates et des Callbacks que nous
+                  avons déjà vus pour Spring JDBC
+                   
+                     ```java
+                     transactionTemplate.execute(new TransactionCallbackWithoutResult() { 
+                       protected void doInTransactionWithoutResult(TransactionStatus status){
+                             try {
+                                 insertionEnBase();
+                                 miseAJourDeLaBase();
+                     } catch (ExceptionMetier ex) { status. setRollbackOnly ();
+                     } }
+                     });  
+                    ```
+        - **Transactions et isolation**  
+           - Dans la pratique, les transactions ne sont en réalité pas toujours bien isolées
+           - Il y a quatre niveaux d’isolation,du plus sécurisé au moins sécurisé :
+             - SERIALIZABLE
+             - REPEATABLE READS
+             - READ COMMITTED
+             - READ UNCOMMITTED
+           - Plus le niveau d’isolation est élevé, plus la base doit **locker** des ressources, et moins les performances sont bonnes
+           - Le niveau d’isolation par défaut est configurable dans la base de données, sous Oracle il est à «READ COMMITTED»
+           - Exemple 1 : non repeatable read
+                   - Ce problème arrive lorsque l’on est en READ COMMITTED ou READ UNCOMMITTED
+                            ![alt text](https://github.com/moussbed/base-spring/blob/main/transaction-non-repeatable-read.png?raw=true)
+           - Exemple 2 : phantom read
+                   - Ce problème arrive lorsque l’on est en REPEATABLE READS, READ COMMITTED ou READ UNCOMMITTED
+                            ![alt text](https://github.com/moussbed/base-spring/blob/main/transaction-phantom-read.png?raw=true)
+        
+        - **La propagation des transactions**   
+           - Que se passe-t-il quand une méthode transactionnelle en appelle une autre ?
+                           ![alt text](https://github.com/moussbed/base-spring/blob/main/transaction-propagation.png?raw=true)
+           
+           - On peut configurer si l’on veut deux transactions différentes ou une seule transaction englobant les deux méthodes
+              - **REQUIRED** : S’il y a déjà une transaction, l’utiliser. Sinon, en créer une
+                    nouvelle. C’est le mode par défaut.
+              - **REQUIRES_NEW** : Crée toujours une nouvelle transaction. S’il y en a déjà
+                une, la suspend. 
+              - **NESTED** : Peut faire une transaction imbriquée, si cela est supporté par le
+                gestionnaire de transaction.   
+              - **MANDATORY** : Une transaction doit déjà exister. Sinon, lance une
+                Exception. 
+              - **SUPPORTS** : Si une transaction existe déjà, l’utilise. Sinon, n’utilise pas de
+                transaction
+              - **NOT_SUPPORTED** : N’utilise pas de transaction. Si une transaction existe
+                déjà, la suspend.
+              - **NEVER** : N’utilise pas de transaction. Si une transaction existe déjà, lance
+                une Exception. 
+           - Exemple
+              - On peut configurer la transaction via l’annotation @Transactional : si elle est «read-only», spécifier un timeout ou un mode de propagation particulier
+              ```java
+                @Transactional(readOnly = true, timeout = 30, propagation = Propagation. REQUIRES_NEW)
+                public void maMethodeMetier() { 
+                  //
+                }
+                 
+              ```
+        - **Les transactions XA** 
+           - Les transactions XA permettent d’avoir une seule transaction en
+             utilisant des ressources différentes
+             - Deux bases de données
+             - Une base de données et un serveur JMS
+           - Pour fonctionner, il faut que ces ressources et le gestionnaire de
+             transaction supportent les transactions XA
+             - WebSphere, Weblogic proposent des gestionnaires de transaction XA
+             - Avec Spring, vous pouvez configurer un gestionnaire de transaction XA
+               externe : Atomikos, Bitronix
+           - Avec Spring, c’est juste une configuration différente de l’infrastructure          
+             - Aucun changement dans le code !
+             - Nous vous déconseillons d’utiliser cette technologie
+             - On peut généralement obtenir le même résultat de manière plus simple
+               (sans faire de transaction distribuée)
+             - De par son fonctionnement, elle est peu performante       
+        
+        - **Pattern «Open Transaction in View»** 
+           - C’est un pattern très répandu dans les applications Web,
+             aussi appelé «**Open Session In View**» (la session étant une
+             session Hibernate)
+             - Spring propose un listener de Servlet qui implémente ce pattern
+           - Ce pattern est très pratique
+             - Permet d’avoir une transaction ouverte tout le temps, y compris dans
+               les pages Web
+             - Règle les problèmes de «lazy loading» avec Hibernate
+           - Nous le déconseillons parfois pour des raisons de
+             performances
+             - Il a tendance à laisser les transactions ouvertes trop longtemps
+             - On arrive à terme à une requête HTTP == une transaction, et donc à
+               une connexion en base de données. Difficile alors de monter en charge !
+               
+                   
+                   
+                     
+                        
