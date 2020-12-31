@@ -538,3 +538,268 @@
                  } }
                   
               ```
+             
+- **ORM (Object-Relational Mapping)**     
+
+   - **Introduction à l’ORM**
+        - Cette technologie permet de mapper automatiquement des objets sur des tables
+          - Cela facilite le développement
+          - Cela donne une architecture logicielle de meilleure qualité
+        - Il existe de nombreuses solutions d’ORM
+          - JPA n’est qu’une API
+          - EclipseLink en est l’implémentation officielle
+          - Hibernate en est l’implémentation (de loin) la plus populaire
+          
+   - **Qu’apporte une solution d’ORM ?**    
+       - Une solution d’ORM permet de se concentrer sur des objets
+         Java (souvent appelés «objets de domaine», pour le
+         domaine métier)
+         - Le code SQL pour créer/sélectionner/mettre à jour/effacer ces
+           données est automatiquement généré
+         - Il n’y a plus de dépendance avec une base de données spécifique
+           (différences dans le langage SQL)  
+         - Elle fournit généralement des mécanismes avancés de cache et de
+           chargement des données qui font qu’elle est au final plus performante que du SQL codé «à la main»
+   
+   - **Les problèmes soulevés par l’ORM**
+       - Une technologie de mapping est nécessaire car il y a des
+         différences fondamentales entre une table et un objet
+         - Il n’y a pas d’héritage ou de polymorphisme en base de données
+         - La gestion des associations est différente (one-to-many et many-to-
+           many)
+         - De nombreux types de données sont différents (par exemple il y a de
+           nombreuses façons de stocker une String en base de données)
+         - Les contraintes de validation ne sont pas gérées de la même
+           manière
+       - Une solution d’ORM a pour but d’alléger ou de simplifier ces
+         problèmes                      
+  
+   - **Quelle implémentation choisir ?**  
+       - Hibernate est de très loin l’implémentation la plus répandue
+         - Hibernate a largement fait ses preuves en termes de qualité et de
+           performance
+         - Il faut avoir une très bonne raison pour ne pas prendre Hibernate
+       - **Privilégier l’API JPA**
+         - C’est ce que recommande également l’équipe Hibernate ! 
+         - Lorsque JPA n’est pas suffisant, on peut toujours compléter avec l’API spécifique Hibernate         
+   
+   - **Mapping d’une entité simple** 
+       - ```java
+         @Entity
+         @Table(name = "t_todo")
+         public class Todo implements Serializable {
+          @Id
+          @Column(name = "id") 
+          private String todoId;
+          @Column(name = "creation_date") 
+          private Date creationDate;
+          private String description;
+          private int priority;
+             // getters et setters
+         }
+         ```     
+       - Ce mapping utilise uniquement des annotations JPA
+       - Les annotations sont :
+          - Au niveau de la classe, pour la mapper sur une table donnée
+          - Au niveau des champs, qui correspondent aux colonnes de la table
+       - La configuration est implicite
+          - Les champs qui n’ont pas d’annotations sont par défaut mappés sur
+            des colonnes ayant le même nom qu’eux
+          - Si le nom de la colonne est différent, on peut le paramétrer avec l’annotation @Column  
+          - Si le champ ne doit pas être mappé, il faut le marquer avec @Transient
+       - Dans le cas le plus simple, il suffit d’annoter la classe avec @Entity et définir le champ contenant la clef primaire avec @Id
+   
+   - **Utilisation de ce mapping**    
+       - 
+       ```java
+            @Service
+            @Transactional
+            public class TodosServiceImpl implements TodosService {
+               @PersistenceContext
+               private EntityManager em;
+               public void createTodo(Todo todo) {
+                  Date now = Calendar.getInstance().getTime();
+                  todo.setCreationDate(now);
+                  em.persist(todo);
+              }
+               public Todo findTodo(String todoId) {
+                  return em.find(Todo.class, todoId);
+              }
+               public Todo updateTodo(String todoId, String description) {
+                  Todo todo = em.find(Todo.class, todoId);
+                  todo.setDescription(description);
+              }
+               public void deleteTodo(String todoId) {
+                  Todo todo = em.find(Todo.class, todoId);
+                  em.remove(todo);
+              } 
+            }
+        ```            
+       - Le PersistenceContext est la classe principale, qui permet de requêter, créer ou supprimer des objets en base de données
+       - La persistance est transparente : dès qu’un objet est géré par le PersistenceContext, ses modifications seront automatiquement répercutées en base de données à la fin de la transaction
+       - Pour mettre à jour un objet, il suffit donc d’appeler ses setters, et d’attendre la fin de la transaction
+   
+   - **Le cache de premier niveau**
+       - Hibernate stocke en fait tout objet lu depuis la base dans un cache de premier niveau
+         - Ce cache correspond à la transaction en cours
+       - Si vous faites deux fois un «**find**» sur la même instance, seul le premier appel lancera une requête SQL  
+         - Le deuxième appel le lira dans le cache de premier niveau
+         - Cela limite considérablement les risques de «**NON REPEATABLE READS**» que nous avons abordés dans le chapitre sur les transactions
+       - À la fin de la transaction, Hibernate va «**flusher** (Demande la mise à jour immédiate de qui est dans le cache )» ce cache
+         - Il va calculer toutes les modifications de l’objet qu’il doit répercuter en base
+         - Il va alors exécuter toutes les requêtes à la suite
+         
+   - **Mapping many-to-one et one-to-many**    
+       - JPA permet également de gérer les relations entre les objets
+         - Un objet qui contient une collection d’autres objets
+         - Cette relation est mappée comme une relation one-to-many en base de données, utilisant une foreign key  
+         - Exemple de mapping many-to-one
+           - ```java
+              @Entity
+              public class Todo implements Serializable { 
+               @Id
+               private String todoId; 
+               @ManyToOne
+               private TodoList todoList; 
+               private Date creationDate; 
+               private String description; 
+               // getters et setters
+            ```
+         - Ce mapping se configure également avec une annotation sur un champ
+         - Nous avons deux objets mappés sur deux tables, et une annotation qui correspond à la foreign key joignant ces deux tables
+         - Il suffit de modifier l’objet lié (todoList dans l’exemple précédent) pour modifier la foreign key
+            ```java
+              public void createTodo(String listId, Todo todo) {
+                Date now = Calendar.getInstance().getTime(); 
+                todo.setCreationDate(now);
+                TodoList todoList = todoListsService. findTodoList(listId); 
+                todo.setTodoList(todoList);
+                em.persist(todo); 
+              }     
+            ```
+   - **Les associations bi-directionnelle**
+       - En fonction du métier, certaines associations sont en fait bi-
+         directionnelles
+         - L’objet parent a accès à une collection d’enfants
+         - Chaque enfant a accès à l’objet parent
+       - Il faut prévenir JPA que le mapping est bi-directionnel
+       - Nous travaillons toujours en Java : il faut donc traiter cela
+         également côté Java
+       - Faire tous les mappings bi-directionnels est une mauvaise
+         pratique
+         - Cela a un impact sur les performances
+         - Cela signifie également que vous avez mal modélisé votre métier
+       - Exemple de mapping bi-directionnel
+         - ```java
+             @Entity
+             public class Todo implements Serializable { 
+              @Id
+              private String todoId;
+           
+              @ManyToOne
+              private TodoList todoList; 
+           
+             }
+           
+             @Entity
+             public class TodoList implements Serializable { 
+              @Id
+              private String listId;
+           
+              @OneToMany(mappedBy = "todoList")
+              private Set<Todo> todos = new HashSet<Todo>();
+             
+             }
+            
+           ```
+       - Utilisation du mapping bi-directionnel
+         - ```java
+               public void createTodo(String listId, Todo todo) {
+                 TodoList todoList = todoListsService. findTodoList(listId); 
+                 todo.setTodoList(todoList); 
+                 em.persist(todo); 
+                 todoList.getTodos().add(todo);
+               }
+               public void deleteTodo(Todo todo) { 
+                 TodoList todoList = todo.getTodoList(); 
+                 Set<Todo> todos = todoList.getTodos(); 
+                 todos.remove(todo);
+                 em.remove(todo);
+              }
+           ```         
+   - **Les méthodes equals() et hashCode()**  
+       - L’utilisation de Set renforce la nécessité de bien implémenter les méthodes equals() et hashCode()
+       - En effet, un Set utilise le **hashCode** pour savoir si un objet est déjà présent ou non dans la Collection 
+         - Si le hashCode est mauvais, on peut remplacer par erreur un autre objet de la Collection
+         - Si le hashCode est inexistant, Java va alors utiliser l’adresse mémoire :
+           il sera alors possible d’insérer deux instances du même objet, ce qui sera très certainement problématique en base de données (violation de la Clef Primaire)          
+           
+   - **Mapping many-to-many**   
+       - JPA permet également de modéliser des relations many-to-many 
+         - Exemple : **un utilisateur possède plusieurs listes, une liste peut être
+           possédée par plusieurs utilisateurs**
+         - C’est un cas métier relativement classique lorsqu’on code en Java
+         - Ce type de relation n’existe pas en base de données : il impose d’utiliser une table de jointure
+       - La table de jointure est automatiquement gérée par JPA
+         - Elle possède deux foreign keys : une vers chaque table contenant les
+           entités
+       - Exemple de mapping many-to-many
+         - ```java
+              @Entity
+              public class User implements Serializable { 
+               @Id
+               private String login;
+           
+               @ManyToMany
+               private Set<TodoList> todoLists = new HashSet<TodoList>(); 
+           
+              } 
+              @Entity
+              public class TodoList implements Serializable { 
+               @Id
+               private String listId; 
+           
+               @ManyToMany(mappedBy = "todoLists")
+               private Set<User> users = new HashSet<User>();
+           
+              }
+           ```      
+       - Utilisation du mapping many-to-many
+         - ```java
+               public void createTodoList(TodoList todoList) { 
+                 User user = userService.getCurrentUser(); 
+                 todoList.getUsers().add(user); 
+                 em.persist(todoList); 
+                 user.getTodoLists().add(todoList);
+              }
+              public void deleteTodoList(String listId) {
+                 TodoList todoList = em.find(TodoList.class, listId); 
+                 for (User user : todoList.getUsers()) {
+                  user.getTodoLists().remove(todoList); 
+                 }
+                 em.remove(todoList); 
+             }
+            ```    
+   - **Programmation défensive**
+       - En Java, quand nous avons une relation bi-directionnelle, nous devons traiter les deux côtés de la relation
+       - Dans les exemples précédents, c’est la couche service qui gère cela 
+          - Mais un développeur peut la contourner, en utilisant directement les
+            objets de domaine
+          - Il est donc recommandé de gérer les bi-directions au niveau des
+            entités  
+           - ```java
+               @Entity
+               public class User implements Serializable {
+               // ...
+               protected void setTodoLists(Set todoLists) { 
+                 this.todoLists = todoLists;
+               }
+               public void addTodoList(TodoList todoList) { 
+                  this.getTodoLists().add(todoList); 
+                  todoList.getUsers().add(this);
+               }
+               public void removeTodoList(TodoList todoList) { 
+                   this.getTodoLists().remove(todoList); 
+                   todoList.getUsers().remove(this);
+               }
+              ```
