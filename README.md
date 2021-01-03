@@ -1068,3 +1068,216 @@
                            constraintViolation.getMessage());
                  }
                ```     
+
+
+- **Introduction à JMS**       
+  - JMS (Java Message Service) est une API standard Java, permettant d’envoyer et de recevoir des messages de manière asynchrone
+  - Spring JMS propose une couche d’abstraction simplifiant l’utilisation de JMS dans un contexte Spring
+  
+  - **Pourquoi utiliser un serveur de messages ?**    
+       - Ce système est asynchrone
+            - Un client peut envoyer un message et reprendre immédiatement son travail, sans attendre de réponse
+            - Un client peut recevoir un message, ce qui va déclencher un traitement
+       - Il permet une architecture faiblement couplée 
+            - Les systèmes clients sont connectés via la messagerie, et ne se connaissent pas entre eux. Ils n’utilisent pas forcément la même
+              technologie
+            - Les messages peuvent être routés d’un système à l’autre
+            - Le serveur de messages sert de buffer : si l’un des systèmes clients
+              est indisponible ou surchargé c’est le serveur de messages qui garantit la livraison des messages
+  
+  - **Pourquoi utiliser JMS ?**  
+       - JMS est juste une API
+            - API standard en Java, comme JDBC pour les bases de données
+            - Il existe de nombreuses implémentations, dans de nombreuses
+              technologies différentes : JMS permet donc de s’abstraire de ces implémentations propriétaires            
+    
+  - **Les implémentations de serveurs JMS**    
+       - Il existe de nombreuses implémentations de serveurs JMS
+            - Apache ActiveMQ
+            - Websphere MQ, d’IBM (anciennement MQ Series)
+            - RabbitMQ, de VMWare
+            - MQTT
+            
+  - **Concepts de base**  
+       - JMS propose deux modèles
+            - Point-to-Point  
+                -  Un client envoie un message dans une «Queue»
+                -  Un autre client vient lire le message dans cette Queue
+                -  C’est le système de la boîte aux lettres
+
+            - Publish/Subscribe
+                - Un client envoie un message dans un «Topic»
+                - Tous les clients abonnés à ce «Topic» reçoivent ce message 
+                - C’est le système de la liste de diffusion
+  
+  - **Exemple d’utilisation de l’API JMS standard**  
+      - ```java
+            QueueConnectionFactory  queueConnectionFactory = (QueueConnectionFactory) jndiContext.
+            lookup("QueueConnectionFactory");
+            Queue queue = (Queue) jndiContext.lookup(queueName);
+            QueueConnection queueConnection = queueConnectionFactory.createQueueConnection();
+            QueueSession queueSession = queueConnection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+            QueueSender queueSender = queueSession.createSender(queue);
+            TextMessage message = queueSession.createTextMessage();
+            message.setText("Voici un message");
+            queueSender.send(message);
+         ```
+  - **Limitations de l’API standard**   
+      - Elle est complexe à utiliser : une dizaine de lignes pour un message simple !
+      - Elle nécessite de gérer des Exceptions (ignorées dans l’ exemple précédent)
+      - Si vous n’utilisez pas un serveur Java EE, elle est synchrone en réception   
+           - Si vous êtes un consommateur de messages, vous ne pouvez pas les recevoir automatiquement : il faut poller la Queue ou le Topic               
+      - Si vous utilisez un serveur Java EE, vous êtes dépendant de JNDI  
+          
+  - **Les types de messages**     
+      - TextMessage
+           - Fournit une chaîne de caractères
+           - Astuce : on peut envoyer ainsi un fichier XML 
+      - BytesMessage
+           - Un tableau de bytes
+      - StreamMessage
+      - MapMessage
+      - ObjectMessage        
+  
+  - **JmsTemplate** 
+      - JmsTemplate propose un système de Template/Callback
+           - Très similaire à JdbcTemplate, TransactionTemplate, etc...
+           - Simplifie l’utilisation de l’API JMS
+           - Abstrait le code de JNDI, et permet de ne plus en dépendre
+           - Est capable de transformer automatiquement un Message JMS (TextMessage, etc...) en objet Java
+      - Comme JdbcTemplate, JmsTemplate est thread-safe
+           - On crée un Template et on le réutilise ensuite  
+           - Il est même parfois configuré en tant que Bean Spring (Singleton)  
+            
+  - **Envoi d’un message avec JmsTemplate**         
+      ```java
+            @Component
+            public class JmsQueueSender { 
+    
+              private JmsTemplate jmsTemplate;
+    
+              @Inject
+              private Queue queue;
+    
+              @Inject
+              public void setConnectionFactory(ConnectionFactory cf) {
+                  this.jmsTemplate = new JmsTemplate(cf);
+              }
+              public void simpleSend() { this.jmsTemplate.send(this.queue, new MessageCreator() {
+                    public Message createMessage(Session session) throws JMSException { 
+                         return session.createTextMessage("Voici un message");
+                    } 
+                });
+              } 
+           }
+      ```
+  - **Réception d’un message avec JmsTemplate**  
+      ```java
+           @Component
+           public class JmsQueueReceiver {
+    
+              private JmsTemplate jmsTemplate;
+    
+              @Inject
+              private Queue queue;
+    
+              @Inject
+              public void setConnectionFactory(ConnectionFactory cf) {
+                this.jmsTemplate = new JmsTemplate(cf);
+              }
+              public void simpleReceive() {
+                TextMessage message = (TextMessage) this.jmsTemplate.receive(queue);
+                System.out.println(textMessage.getText());
+              } 
+           }
+      ```
+    
+  - **Accès à un serveur JMS avec JNDI**  
+      - Le serveur JMS est ici configuré dans un serveur d'applications Java EE
+      - On trouve donc le serveur JMS, les Topics et les Queues via l’annuaire JNDI du serveur Java EE
+      - Spring propose un namespace «jee» pour faciliter ces opérations de recherche dans JNDI  
+      - Les connexions au serveur JMS sont censées être mises dans un
+        pool de connexions par le serveur d’applications (même principe que pour les connexions JDBC) 
+         - ```xml
+               <jee:jndi-lookup id="connectionFactory" jndi-name="jms/ConnectionFactory" />
+               <jee:jndi-lookup id="queue" jndi-name="jms/TestQueue"/>
+            ``` 
+  - **Accès à un serveur ActiveMQ sans JNDI** 
+      ```xml
+          <bean id="amqConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory" > 
+              <property name="brokerURL" value="tcp://localhost:61616" />
+         </bean>
+         <bean id="cachedConnectionFactory" class="org.springframework.jms.connection.CachingConnectionFactory" > 
+              <property name="targetConnectionFactory" ref="amqConnectionFactory" /> 
+              <property name="sessionCacheSize" value="10"/>
+         </bean>
+         <bean id="queue" class="org.apache.activemq.command.ActiveMQQueue" > 
+               <constructor-arg value="Queue.TEST" />
+         </bean>
+         <bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate" > 
+               <property name="connectionFactory" ref="cachedConnectionFactory" /> 
+               <property name="defaultDestination" ref="queue"/>
+         </bean>
+      ```        
+  
+  - **Lancement d’un serveur ActiveMQ depuis Spring**  
+      - Il est possible «d’embarquer» ActiveMQ directement dans une application Spring
+         ```xml
+            <bean id="broker" class="org.apache.activemq.xbean.BrokerFactoryBean" >
+               <property name="config" value="classpath:org/apache/activemq/xbean/activemq.xml" /> 
+               <property name="start" value="true" />
+            </bean>
+         ```
+      - **ActiveMQ étant lui-même basé sur Spring, il propose même un namespace «amq» pour faciliter sa propre configuration**  
+         ```xml
+            <amq:broker useJmx="false" persistent="false"> 
+              <amq:transportConnectors>
+                 <amq:transportConnector uri="tcp://localhost:0" /> 
+               </amq:transportConnectors>
+            </amq:broker>
+         ```
+  - **Réception automatique de messages**    
+      - La configuration que nous avons vu jusqu’à présent simplifiait juste l’utilisation et la configuration de l’API JMS
+      - Le problème, pour la réception de messages, c’est que nous sommes synchrones  
+         - Il faut appeler la méthode «receive()» pour voir si un message est arrivé
+         - Cela force à faire du polling : une thread qui va régulièrement voir si il y a des messages en attente
+      - Une solution existe : ce sont les EJB «Message Driven», ou «MDB» (Message Driven Beans)
+         - Ces objets sont automatiquement notifiés quand un message leur est destiné
+         - Cela permet de faire de la programmation événementielle
+  
+  - **Les «Message Driven POJOs»**     
+      - Spring propose des «Message Driven POJOs», c’est-à-dire des objets Java simples qui reçoivent automatiquement des message JMS
+         - Spring fonctionne avec l’interface MessageListener de JMS, mais l’utilisation de cette interface n’est pas obligatoire (on a alors de «vrais» POJOs, qui ne connaissent même pas JMS)  
+         - Spring utilise pour cela un pool de threads, que l’on peut configurer si nécessaire
+  
+  - **Exemple de MessageListener**    
+      ```java
+         @Component
+         public class SimpleMessageListener implements MessageListener {
+    
+         public void onMessage(Message message) { 
+           try {
+                    TextMessage testMessage = (TextMessage) message;
+                    System.out.println(textMessage.getText());
+              } 
+              } catch (JMSException e) {
+                   e. printStackTrace (); 
+             }
+         }
+     ```  
+     ```xml
+          <jms:listener-container
+              container-type= "default" connection-factory= "connectionFactory" acknowledge="auto">
+             <jms:listener destination="test.Queue" ref="simpleMessageListener" /> 
+         </jms:listener-container>
+     ``` 
+  
+  - **La gestion des transactions**  
+     - Pour qu’un message soit considéré comme traité, un accusé de réception doit être renvoyé
+         - Selon la configuration, cet accusé de réception peut être renvoyé par
+           le client ayant lu le message, ou être envoyé automatiquement
+     - Si l’on utilise des sessions JMS transactionnelles, les messages vont pouvoir être commités ou rollbackés      
+         - Fonctionnement similaire à une transaction en base de données
+         - Peut être géré via JTA
+         - **Attention** : à moins que vous n’utilisiez la technologie XA, vos
+           transactions JMS et vos transactions JDBC seront deux choses séparées (voir le chapitre sur les transactions à ce sujet)
