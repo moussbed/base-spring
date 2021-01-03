@@ -5,7 +5,6 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import java.util.List;
 
 public class User {
-
     private String name;
 
     private List<TodoList> todoLists;

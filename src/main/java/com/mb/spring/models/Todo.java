@@ -3,10 +3,14 @@ package com.mb.spring.models;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.hibernate.validator.constraints.ISBN;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Past;
 import java.util.Date;
 
 
@@ -15,6 +19,8 @@ public class Todo implements Comparable<Todo>{
 
     @Id
     @Column(name = "id")
+    @NotNull
+    @ISBN
     private String todoId;
 
     private User assignedUser;
@@ -22,10 +28,13 @@ public class Todo implements Comparable<Todo>{
     private boolean completed;
 
     @Column(name = "creation_date")
+    @Past
     private Date creationDate;
 
     private String description;
 
+    @Min(0)
+    @NotNull
     private int priority;
 
     public User getAssignedUser() {

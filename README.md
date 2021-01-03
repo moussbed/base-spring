@@ -957,3 +957,114 @@
          - Il permet de considérablement améliorer les performances
          - **Il faut utiliser une solution tierce : EHCache est la plus populaire**
                   ![alt text](https://github.com/moussbed/base-spring/blob/main/cache-niveau-2.png?raw=true)
+                  
+
+-  **Bean Validation**
+
+   - **Qu’est-ce que Bean Validation ?**
+       - Bean Validation est une spécification (JSR-303)
+       - L’implémentation de référence est Hibernate Validator, un sous-projet Hibernate
+       - Bean Validation permet de valider des Java Beans par l’ajout d’annotations
+         - Cela permet de «renforcer» les entités Hibernate
+           - Ces entités ne se contentent plus de stocker simplement des données, elles peuvent les valider
+           - A rapprocher  avec la «programmation défensive» et l’architecture DDD   
+         - Bean Validation est également utilisable en dehors d’Hibernate
+   
+   - **Exemple d’entité avec Bean Validation**     
+       ```java
+           @Entity
+           public class User implements Serializable {
+            @Id
+            @NotNull 
+            private int id;
+     
+            @Size(min = 0, max = 150) 
+            @Email
+            private String email;
+           
+            @Past
+            private Date creationDate;
+     
+            @Min(0)
+            @NotNull
+            private int balance;
+               // getters et setters
+           }
+       ``` 
+   - **Exemples d’annotations fournies**        
+       - ```java
+            @Size(min=2, max=240)
+            @AssertTrue / @AssertFalse
+            @Null / @NotNull
+            @Max / @Min
+            @Future(@FutureOrPresent) / @Past(@PastOrPresent)
+            @Digits(integer=6, fraction=2)
+            @Pattern(regexp="\\(\\d{3}\\)\\d{3}-\\d{4}")
+                
+         ```   
+
+   -  **Hibernate Validator**
+       - Hibernate Validator est l’implémentation de référence
+       - Hibernate Validator propose un certain nombre d’annotations qui ne sont pas présentes dans la spécification
+          - @Email (Deja disponible dans la JSR 380)
+          - @URL
+          - @CreditCardNumber
+          - @Range
+   
+   - **Faire ses propres annotations de validation**   
+      - Il est possible de créer des annotations spécifiques, qui correspondent à un besoin ou à un métier spécifique  
+       - Exemple : valider un numéro ISBN (code utilisé pour identifier les livres)
+            ```java
+               @Constraint(validatedBy = IsbnValidator. class) 
+               @Target(value = ElementType. FIELD)
+               @Retention(RetentionPolicy.RUNTIME)
+               public @interface Isbn {
+                 String message() default "Mauvais numéro ISBN" ; 
+                 Class<?>[] groups() default {};
+                 Class<? extends Payload>[] payload() default { };
+               }
+         
+              import org.apache.commons.validator.routines.ISBNValidator ;
+         
+              public class IsbnValidator implements ConstraintValidator<Isbn, String> {
+                public void initialize(Isbn constraintAnnotation) {
+                }
+                public boolean isValid(String value, ConstraintValidatorContextcontext) {
+                    return ISBNValidator.isValidISBN13(value);
+                } }
+
+           ```
+   - **Les groupes de validation**  
+       - On ne veut pas toujours valider une entité dans son ensemble
+            - C’est en particulier utile dans la couche de présentation : il faut peut-
+              être deux étapes pour avoir une entité complète
+       - On utilise alors des groupes de validations       
+            - Il peut y avoir plusieurs groupes, et on peut valider plusieurs groupes
+              en une fois
+            - Le groupe par défaut s’appelle «Default»   
+            - Il faut pour cela créer une interface qui correspond à ce groupe
+            
+   - **Configuration et utilisation avec JPA**   
+       - Avec JPA 2, l’intégration de Bean Validation est automatique ! Il n’y a donc rien à faire
+            - Avec JPA 1 il fallait rajouter un listener sur les entités
+       - Lorsqu’une entité est créée ou modifiée, Bean Validation va automatiquement la valider
+            - En cas d’erreur, Bean Validation lancera une Exception de type ConstraintViolationException
+            - Cette Exception fournit un Set de ConstraintViolation, lesquelles fournissent tous les détails sur les contraintes enfreintes (message d’
+              erreur, nom de la contrainte, champ, etc...)
+            - A priori, cette Exception va être traitée par la couche de présentation
+              : il existe des tag libs ou des composants JSF spécialisés dans l’ affichage de ces Exceptions
+                
+   - **Utilisation programmatique de Bean Validation**    
+       - On peut également choisir de valider un Bean via l’API de Bean Validation  
+            - Si ce Bean n’est pas une entité Hibernate
+            - Parce que l’on se trouve dans une autre couche de l’application : c’
+              est la technique qui sera utilisée dans le chapitre traitant de Spring MVC
+                ```java
+                  ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+                      Validator validator = factory.getValidator();
+                      Set<ConstraintViolation<Book>> constraintViolations = validator.validate(book);
+                      for (ConstraintViolation<Book> constraintViolation : constraintViolations) {
+                           System.out.println(constraintViolation.getPropertyPath() + " - " +
+                           constraintViolation.getMessage());
+                 }
+               ```     
