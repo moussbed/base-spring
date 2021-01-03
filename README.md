@@ -610,7 +610,6 @@
        - Dans le cas le plus simple, il suffit d’annoter la classe avec @Entity et définir le champ contenant la clef primaire avec @Id
    
    - **Utilisation de ce mapping**    
-       - 
        ```java
             @Service
             @Transactional
@@ -803,3 +802,158 @@
                    todoList.getUsers().remove(this);
                }
               ```
+             
+   - **JPQL**
+       - _**Java Persistence Query Language**_ (JPQL) est un langage de requêtage spécifique à JPA, qui est indépendant de la base
+         de données      
+       -  Il ressemble à du SQL
+       -  Mais il s’exécute sur les objets Java (et non les tables), et a accès à
+          leurs propriétés 
+           - ```jpaql 
+                SELECT user FROM User user where user.login LIKE :login
+                SELECT COUNT(user) FROM User user
+             ```
+   - **API Criteria**    
+       - L’API Criteria permet également de requêter la base via JPA
+           - > Elle évite de faire de la manipulation de chaînes de caractères pour
+             avoir la bonne requête
+           - > Elle est très adaptée aux écrans de recherche, où l’on peut
+             sélectionner de nombreux critères différents
+             - 
+             ```java
+                   CriteriaBuilder qb = em.getCriteriaBuilder(); 
+                   CriteriaQuery<Todo> query = qb. createQuery(Todo.class); 
+                   Root from = query.from(Todo.class);
+                   Predicate condition = qb.gt(from.get("priority"), 20); 
+                   query.where(condition);
+                   TypedQuery<Todo> typedQuery = em. createQuery(query);
+                   List<Todo> todos = typedQuery. getResultList();
+             ```
+   
+   - **Configuration avec Spring**        
+       - Il faut configurer un EntityManagerFactory, qui sera capable de fournir les EntityManager utilisés précédemment
+          - ```xml
+              <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+                <property name="dataSource" ref="dataSource"/> 
+                <property name="jpaVendorAdapter">
+                   <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter"> 
+                     <property name="database" value="MYSQL"/>
+                     <property name="databasePlatform" value="org.hibernate.dialect.MySQLDialect"/>
+                   </bean>
+                </property>
+                <property name="persistenceXmlLocation" value="classpath:META-INF/persistence.xml"/>
+              </bean>
+               
+            ```
+       - La configuration Spring référence un fichier persistence.xml
+          - C’est le fichier standard de configuration de JPA
+          - Depuis Spring 3.1, ce fichier est optionnel
+            - ```xml
+                 <persistence xmlns="..."> 
+                  <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
+                   <class>tudu.domain.Todo</class>
+                   <class>tudu.domain.TodoList</class> 
+                   <class>tudu.domain.User</class> 
+                   <properties>
+                    <property name="hibernate.cache.region.factory_class" value="net.sf.ehcache.hibernate.SingletonEhCacheRegionFactory"/>
+                   </properties>
+                  </persistence-unit>
+                 </persistence>
+                  
+              ```     
+          - Pour que Spring puisse injecter un EntityManager, il faut lui ajouter le BeanPostProcessor suivant :    
+            
+              ```xml
+              <bean class="org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor" />
+               
+              ```
+   - **Gestion des Exceptions**         
+       - De même que pour Spring JDBC, on peut ajouter un BeanPostProcessor qui va gérer les Exceptions
+         - Il va également transformer les Exceptions JPA et Hibernate en DataAccessException de Spring 
+         - Il permet donc d’avoir la même hiérarchie d’Exceptions, quelle que soit la technologie d’accès aux données utilisée : JDBC, Hibernate ou
+            JPA
+         - Au niveau de la couche «Service», l’implémentation de la couche «Repository» n’est donc pas exposée   
+         - Pour configurer cette gestion des Exceptions, il faut utiliser un Aspect fourni par Spring
+            - Cet Aspect catche les Exceptions lancées par tous les Beans annotés @Repository
+            - La configuration de cet Aspect passe par l’utilisation d’un BeanPostProcessor
+               - **Rappel : les BeanPostProcessor permettent de modifier les instances des Beans Spring, après leur instanciation**
+                   ```java
+                      @Repository
+                      public class ExampleDaoImpl implements ExampleDao { 
+                       // méthodes
+                      }
+                   ```
+                   ```xml
+                      <!-- Aspect à ajouter dans la configuration des DAOs -->
+                      <bean class="org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor" />
+                   ```
+   - **HibernateTemplate et JpaTemplate**
+       - Il existe des classes HibernateTemplate et JpaTemplate pour faciliter l’utilisation d’Hibernate et de JPA  
+         - Exactement le même mécanisme que pour Spring JDBC et que pour les transactions   
+       - Cependant ces classes ne sont plus utiles avec les versions récentes de Spring    
+       - Il n’est donc pas conseillé d’utiliser ces Templates       
+   
+   - **Exemple de Bean Spring «Repository»**    
+       - ```java
+             @Repository
+              public class UserServiceImpl implements UserService { 
+                @PersistenceContext
+                private EntityManager em;
+                public User findUser(String login) {
+                    return em.find(User.class, login);
+                } 
+             }
+         ```  
+       - Bien que cela macherait, la couche «Repository» est superflue(Qui n'est pas essentiel, qui est de trop)    
+       - Effectivement, cette couche ne sert plus à rien car c’est Hibernate qui gère l’ensemble de la persistance  
+         - Cette couche est régulièrement contournée avec Hibernate : ajouter
+           une entité dans une collection peut revenir à faire un update en base de données, sans passer par la couche Repository   
+   
+   - **Gestion des transactions** 
+       - Avec JPA, comme en Spring JDBC, la gestion de transactions est essentielle   
+         - C’est d’autant plus important qu’Hibernate flushe ses données à la fin
+           de la transaction
+         - JPA est généralement utilisé dans un serveur d’applications, et donc
+           avec un gestionnaire de transactions JTA, mais il a également une implémentation dédiée si nécessaire :
+           ```xml
+             <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager" >
+               <property name="entityManagerFactory" ref="entityManagerFactory" />
+             </bean>
+              
+           ```
+   - **Utilisation avec Spring JDBC**  
+       - Avec un gestionnaire de transactions JTA, on peut faire des requêtes JDBC et JPA dans la même transaction 
+       - Il suffit d’annoter sa couche service avec @Transactional, et toutes
+         les requêtes sont dans la même transaction
+       - Attention avec le cache de 1er niveau : en cas de modification d’une entité JPA, elle ne sera visible en base de données
+         qu’après avoir été «flushée»
+         - Une requête JDBC exécutée après du code JPA ne verra donc pas les données modifiées   
+         - Pour résoudre ce problème, il faut «flusher» manuellement la session
+           JPA, ce qui exécutera alors immédiatement les requêtes, sans pour autant commiter la transaction
+   
+   - **Le lazy-loading**       
+       - Le lazy-loading permet de ne charger des entités JPA que lorsqu’elles sont demandées
+         - C’est le comportement par défaut des collections
+         - On peut aussi le paramétrer sur des champs
+       - Cela évite, lorsque l’on requête une entité, de charger toutes les entités qui lui sont liées  
+         - En règle générale, c’est donc une excellente option pour la performance
+       - Cependant, cela peut multiplier les requêtes
+         - Il ne faut pas faire de lazy-loading sur des associations qui sont toujours
+           nécessaires lorsque l’on charge une entité
+       - Cela va également exécuter des requêtes SQL dans d’autres couches de l’application 
+         - Si on demande cette association dans une JSP, la requête sera faite à ce niveau   
+         
+   - **Les stratégies de fetch**  
+       - On peut configurer JPA pour ne pas faire de lazy-loading sur une association :
+         - ```java
+             @OneToMany(fetch=FetchType.EAGER) private Set<Todo> todos;
+           ```      
+       - Hibernate va alors faire un outer-join : il ne fera donc qu’une seule requête qui va chercher l’ensemble des entités (l’entité principale et toutes les entités associées)    
+       - Attention, si l’on utilise cette technique sur de trop nombreuses associations, la requête Hibernate va devenir très complexe
+       
+   - **Le cache de 2nd niveau**    
+       - Le cache de 2nd niveau permet de stocker les entités fréquemment utilisées
+         - Il est commun à tous les EntityManager
+         - Il permet de considérablement améliorer les performances
+         - **Il faut utiliser une solution tierce : EHCache est la plus populaire**
+                  ![alt text](https://github.com/moussbed/base-spring/blob/main/cache-niveau-2.png?raw=true)
