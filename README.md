@@ -1281,3 +1281,104 @@
          - Peut être géré via JTA
          - **Attention** : à moins que vous n’utilisiez la technologie XA, vos
            transactions JMS et vos transactions JDBC seront deux choses séparées (voir le chapitre sur les transactions à ce sujet)
+   
+   
+   
+   
+- **Introduction à JMX**
+  - Java Management Extensions (JMX) est une technologie standard Java permettant l’étude (**monitoring**) et la gestion (**management**) d’objets Java
+     - Ces objets sont appelés des «managed beans», ou MBeans
+  - JMX est intégré dans la JVM
+  - JMX est accessible à distance
+     -  Il existe de nombreux outils permettant de gérer des MBeans, le plus
+        simple étant JConsole, qui est fourni avec la JVM
+     - Sur un poste où Java est installé, lancer «jconsole» pour faire
+       apparaître la console 
+       
+  - **Pourquoi utiliser JMX ?** 
+     - En production, il est essentiel de pouvoir monitorer/manager les services Java
+     - JMX n’a pas vraiment de concurrent en Java, et c’est ce qu’utilisent de nombreux projets Open Source (Tomcat, Hibernate, ActiveMQ ...)
+     - Tous les outils de monitoring/management du marché supportent JMX         
+  
+  - **Exemple avec ActiveMQ**   
+     - ActiveMQ est accessible via JMX
+        - Lancer un serveur ActiveMQ
+        - Lancer une console JMX
+     - JConsole propose un arbre avec les MBeans exposés
+        - La JVM et ActiveMQ exposent un certain nombre de services
+        - Les MBeans permettent de monitorer le système
+            - Exemple : le nombre de messages en attente dans une Queue JMS
+        - Les MBeans permettent de manager le système
+        - Exemple : vider une Queue JMS
+  
+  - **Spring et JMX**
+     - Exposer un Bean Spring en JMX est une simple configuration Spring
+        - Pas besoin de coder quoi que ce soit
+        - Une configuration plus précise (méthodes exposées, etc) peut être réalisée en XML ou via des annotations
+     
+     - Astuce : stocker cette configuration dans un fichier séparé, de manière à pouvoir facilement enlever/modifier/reconfigurer le monitoring   
+        - C’est encore un bon exemple de configuration «d’infrastructure»
+        
+  - **Exemple d’export de Beans Spring en JMX**
+     ```xml
+         <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean" lazy-init="false"/>
+         <bean id="exporter" class="org.springframework.jmx.export.MBeanExporter">
+           <property name="beans">
+              <map>
+               <entry key="spring:name=todoService" value-ref="todoService"/> 
+              </map>
+           </property>
+           <property name="server" ref="mbeanServer"/> 
+         </bean>
+         <bean id="todoService" class="test.TodoService"> 
+           <property name="exemple" value="TEST"/>
+        </bean>
+     ```      
+  - **Utilisation des annotations pour l'export de beans spring**   
+  
+     ```xml
+          <bean id="exporter" class="org.springframework.jmx.export.MBeanExporter"> 
+             <property name="namingStrategy" ref="namingStrategy"/>
+             <property name="assembler" ref="assembler"/>
+          </bean>
+         <bean id="attributeSource" class="org.springframework.jmx.export.annotation.AnnotationJmxAttributeSource"/>
+         <bean id="assembler" class="org.springframework.jmx.export.assembler.MetadataMBeanInfoAssembler">
+             <property name="attributeSource" ref="attributeSource"/> 
+         </bean>
+         <bean id="namingStrategy" class="org.springframework.jmx.export.naming.MetadataNamingStrategy">
+            <property name="attributeSource" ref="attributeSource"/> 
+         </bean>
+     ```   
+    ```java
+        @Service
+        @ManagedResource(objectName = "spring:name=accountService")
+        public class AccountService {
+            public int balance;
+            @ManagedAttribute
+            public int getBalance() {
+                return balance;
+            }
+            public void setBalance(int balance) {
+                this.balance = balance;
+           } 
+       }
+    ```
+    
+   
+  - **Monitoring d’Hibernate avec JMX**         
+    - Spring peut également exposer des MBeans existants : on peut ainsi exposer le service de statistiques d’Hibernate
+       - C’est un excellent moyen d’étudier le comportement et les performances d’Hibernate
+       ```xml
+            <bean id="jmxExporter" class="org.springframework.jmx.export.MBeanExporter" > 
+              <property name="beans">
+                <map>
+                  <entry key="Hibernate:type=statistics" value-ref="statisticsBean"/>
+                </map>
+              </property>
+            </bean>
+            <bean id="statisticsBean" class="org.hibernate.jmx.StatisticsService" > 
+              <property name="statisticsEnabled" value="true"/>
+              <property name="sessionFactory" ref="sessionFactory"/>
+            </bean>      
+       ```    
+           
